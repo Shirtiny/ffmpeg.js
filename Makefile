@@ -6,18 +6,18 @@ PRE_JS = build/pre.js
 POST_JS_SYNC = build/post-sync.js
 POST_JS_WORKER = build/post-worker.js
 
-COMMON_FILTERS = aresample scale crop overlay
-COMMON_DEMUXERS = matroska ogg avi mov flv mpegps image2 mp3 concat
+COMMON_FILTERS = aresample scale crop overlay subtitles ass
+COMMON_DEMUXERS = matroska ogg avi mov flv mpegps image2 mp3 concat srt webvtt
 COMMON_DECODERS = \
 	vp8 vp9 theora \
 	mpeg2video mpeg4 h264 hevc \
 	png mjpeg \
 	vorbis opus \
 	mp3 ac3 aac \
-	ass ssa srt webvtt
+	ass ssa srt webvtt text
 
-WEBM_MUXERS = webm ogg null image2
-WEBM_ENCODERS = libvpx_vp8 libopus mjpeg
+WEBM_MUXERS = webm ogg ass srt webvtt null image2
+WEBM_ENCODERS = libvpx_vp8 libopus mjpeg srt ass webvtt text
 FFMPEG_WEBM_BC = build/ffmpeg-webm/ffmpeg.bc
 LIBASS_PC_PATH = ../freetype/dist/lib/pkgconfig:../fribidi/dist/lib/pkgconfig
 FFMPEG_WEBM_PC_PATH_ = \
@@ -34,11 +34,17 @@ WEBM_SHARED_DEPS = \
 	build/opus/dist/lib/libopus.so \
 	build/libvpx/dist/lib/libvpx.so
 
-MP4_MUXERS = mp4 mp3 null
-MP4_ENCODERS = libx264 libmp3lame aac
+MP4_MUXERS = mp4 mp3 ass srt webvtt null
+MP4_ENCODERS = libx264 libmp3lame aac srt ass webvtt text
 FFMPEG_MP4_BC = build/ffmpeg-mp4/ffmpeg.bc
-FFMPEG_MP4_PC_PATH = ../x264/dist/lib/pkgconfig
+FFMPEG_MP4_PC_PATH_ = \
+    $(LIBASS_PC_PATH):\
+	../libass/dist/lib/pkgconfig:\
+	../x264/dist/lib/pkgconfig
+FFMPEG_MP4_PC_PATH = $(subst : ,:,$(FFMPEG_MP4_PC_PATH_))
 MP4_SHARED_DEPS = \
+	$(LIBASS_DEPS) \
+	build/libass/dist/lib/libass.so \
 	build/lame/dist/lib/libmp3lame.so \
 	build/x264/dist/lib/libx264.so
 
@@ -253,6 +259,7 @@ FFMPEG_COMMON_ARGS = \
 	$(addprefix --enable-decoder=,$(COMMON_DECODERS)) \
 	$(addprefix --enable-demuxer=,$(COMMON_DEMUXERS)) \
 	--enable-protocol=file \
+	--enable-libass \
 	$(addprefix --enable-filter=,$(COMMON_FILTERS)) \
 	--disable-bzlib \
 	--disable-iconv \
@@ -273,8 +280,6 @@ build/ffmpeg-webm/ffmpeg.bc: $(WEBM_SHARED_DEPS)
 		$(FFMPEG_COMMON_ARGS) \
 		$(addprefix --enable-encoder=,$(WEBM_ENCODERS)) \
 		$(addprefix --enable-muxer=,$(WEBM_MUXERS)) \
-		--enable-filter=subtitles \
-		--enable-libass \
 		--enable-libopus \
 		--enable-libvpx \
 		--extra-cflags="-I../libvpx/dist/include" \
@@ -287,6 +292,7 @@ build/ffmpeg-mp4/ffmpeg.bc: $(MP4_SHARED_DEPS)
 	cd build/ffmpeg-mp4 && \
 	git reset --hard && \
 	patch -p1 < ../ffmpeg-disable-arc4random.patch && \
+	patch -p1 < ../ffmpeg-default-font.patch && \
 	patch -p1 < ../ffmpeg-disable-monotonic.patch && \
 	EM_PKG_CONFIG_PATH=$(FFMPEG_MP4_PC_PATH) emconfigure ./configure \
 		$(FFMPEG_COMMON_ARGS) \
@@ -305,10 +311,14 @@ build/ffmpeg-mp4/ffmpeg.bc: $(MP4_SHARED_DEPS)
 # NOTE(Kagami): Bump heap size to 64M, default 16M is not enough even
 # for simple tests and 32M tends to run slower than 64M.
 EMCC_COMMON_ARGS = \
-	--closure 1 \
+	-O2 \
+	--memory-init-file 0 \
+	-s WASM=0 \
+	-s ASSERTIONS=0 \
+	-s EXIT_RUNTIME=1 \
+	-s NODEJS_CATCH_EXIT=0 \
 	-s TOTAL_MEMORY=67108864 \
-	-s OUTLINING_LIMIT=20000 \
-	-O3 --memory-init-file 0 \
+	-lnodefs.js -lworkerfs.js \
 	--pre-js $(PRE_JS) \
 	-o $@
 

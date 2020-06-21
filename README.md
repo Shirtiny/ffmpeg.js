@@ -136,23 +136,18 @@ ffmpeg({
 Tips, use a [docker](https://www.docker.com/) container (basic ubuntu is good)
 
 ```bash
-apt-get update
-apt-get -y install wget python git automake libtool build-essential cmake libglib2.0-dev closure-compiler
+# docker run -it ubuntu:18.04 /bin/bash
+apt update
+apt -y install python git automake libtool build-essential cmake libglib2.0-dev closure-compiler
 
-cd /root # or /home/whatever
-wget https://s3.amazonaws.com/mozilla-games/emscripten/releases/emsdk-portable.tar.gz
-tar xzvf emsdk-portable.tar.gz
-cd emsdk-portable
-./emsdk update
-./emsdk install node-8.9.1-64bit && ./emsdk install emscripten-1.35.0 && ./emsdk install clang-tag-e1.35.0-64bit
-./emsdk activate node-8.9.1-64bit && ./emsdk activate emscripten-1.35.0 && ./emsdk activate clang-tag-e1.35.0-64bit
+cd ~
+git clone https://github.com/emscripten-core/emsdk.git && cd emsdk
+./emsdk install node-8.9.1-64bit && ./emsdk install emscripten-1.38.30 && ./emsdk install fastcomp-clang-e1.38.30-64bit
+./emsdk activate node-8.9.1-64bit && ./emsdk activate emscripten-1.38.30 && ./emsdk activate fastcomp-clang-e1.38.30-64bit
 source ./emsdk_env.sh
 
-cd /root # or /home/whatever
-git clone https://github.com/Kagami/ffmpeg.js.git
-cd ffmpeg.js
-git submodule init
-git submodule update --recursive
+cd ~
+git clone -b subtitles https://github.com/Shirtiny/ffmpeg.js.git --recurse-submodules && cd ffmpeg.js
 
 make all
 ```
